@@ -10,5 +10,6 @@ Key word filter can be updated for your needs.
 
 Run this script with a cronjob every minute by adding the following to your crontab:
 
+```
 * * * * * /usr/bin/python3 /home/ec2-user/rss_webhook/rss_webhook.py
-
+```
