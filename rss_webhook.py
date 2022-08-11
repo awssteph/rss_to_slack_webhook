@@ -67,21 +67,8 @@ for key in feed["entries"]:
             "url": url,
         }
 
-
         jsonData = json.dumps(body)
         response = requests.post(webhook, jsonData)
-        responseBody = response.json()
-
-        #logging
-        date = datetime.now().strftime("%Y_%m_%d-%I:%M:%S_%p")
-        file1 = open('logfile.log', 'a')
-        file1.write(date + " Attempting post to webhook: "  + jsonData)
-        file1.write("\n")
-        date = datetime.now().strftime("%Y_%m_%d-%I:%M:%S_%p")
-        file1.write(date + " Response: " + str(response) + " : ")
-        file1.write(json.dumps(responseBody))
-        file1.write("\n")
-        file1.close()
 
                 # recording URLs to file
         with open('viewed_urls.txt', 'a') as f:
