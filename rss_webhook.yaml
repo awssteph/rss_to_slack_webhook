@@ -51,7 +51,7 @@ Resources:
     Properties:
       Description: Lambda RSS Data trigger
       Name: RSSLambdaCloudWatchTrigger
-      ScheduleExpression: "cron(0 6 ? * MON *)"
+      ScheduleExpression: "cron(0 10 * * ? *)"  
       State: ENABLED
       Targets:
         - Arn:
@@ -241,6 +241,6 @@ Resources:
         - python3.10
       Content:
         S3Bucket: !FindInMap [RegionMap, !Ref "AWS::Region", CodeBucket]
-        S3Key: Labs/Cost/rss.zip
+        S3Key: Cost/Labs/rss.zip
       Description: rss layer with BeautifulSoup4, feedparser, requests, urllib3==1.26.15
       LayerName: rss-layer
