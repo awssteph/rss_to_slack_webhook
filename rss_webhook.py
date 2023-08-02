@@ -59,6 +59,7 @@ def lambda_handler(event, context):
                 with open('/tmp/viewed_urls.txt', 'a') as f:
                     f.write('{}\n'.format(url))
                     f.close()
+        
         s3_upload()
                 
     except Exception as e:
