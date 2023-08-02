@@ -132,7 +132,7 @@ Resources:
               try:
                   # View list of previously shared URLs
                   s = s3_download()
-                  f = open('/tmp/viewed_urls.txt', 'r') #CHANGE TO READ FROM S£
+                  f = open('/tmp/viewed_urls.txt', 'r')
                   urls = f.readlines()
                   urls = [url.rstrip() for url in urls] # remove the '\n' char
                   f.close()
