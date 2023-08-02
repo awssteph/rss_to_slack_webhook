@@ -223,6 +223,8 @@ Resources:
         Variables:
           BUCKET_NAME:  !Sub "${DestinationBucket}${AWS::AccountId}"
           WEBHOOK: !Ref Webhook
+      Architectures:
+           - "arm64"
       Layers:
         - !Ref RRSLayer
   LambdaLogGroup:
