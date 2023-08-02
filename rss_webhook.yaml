@@ -1,0 +1,172 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Main CF template that builds shared resources and other stacks
+Parameters:
+  DestinationBucket:
+    Type: String
+    Description: Name of the S3 Bucket that is created to hold RSSw data
+    AllowedPattern: (?=^.{3,63}$)(?!^(\d+\.)+\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])\.)*([a-z0-9]|[a-z0-9][a-z0-9\-]*[a-z0-9])$)
+    Default: rssdestinationbucket
+  Webhook:
+    Type: String
+    Description: Get your Slack Webhook from here https://api.slack.com/messaging/webhooks
+
+Resources:
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName:
+        !Sub "${DestinationBucket}${AWS::AccountId}"
+  CloudWatchTrigger:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Lambda RSSW Data trigger
+      Name: Lambda
+      ScheduleExpression: "cron(0 6 ? * MON *)"
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+            - Lambda
+            - Arn
+          Id: WeeklyTriggerForRSSWdata
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: LambdaRSSWRole
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSLambdaExecute
+      Path: /
+      Policies:
+        - PolicyName: "LambdaTWGPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "glue:StartCrawler"
+                Resource: "*"
+              - Effect: "Allow"
+                Action:
+                  - "cloudwatch:*"
+                Resource: "*"
+              - Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                  - "logs:DescribeLogStreams"
+                Resource: "arn:aws:logs:*:*:*"
+  Lambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: Lambda
+      Description: LambdaFunction of python3.10
+      Runtime: python3.10
+      Code:
+        ZipFile: |
+          from bs4 import BeautifulSoup
+          from datetime import datetime
+          import feedparser
+          import requests
+          import json
+          import logging
+
+
+          # Adapted from: https://timothybramlett.com/recieving_notifications_of_rss_feeds_matching_keywords_with_Python.html
+
+          # Just some sample keywords to search for in the title
+          key_words = ['cost','price','optimize','optimization','costs','prices','pricing','advisor', 'graviton','CFM','financial','finops','finance']
+
+          # Slack Webhook for Publishing Target
+          webhook = os.environ['WEBHOOK']#'https://hooks.slack.com/workflows/T016M3G908HSKLSL/9734HHKS/FFESfRF0'
+
+          # RSS Feed
+          rss = 'https://aws.amazon.com/about-aws/whats-new/recent/feed/'
+
+
+          # View list of previously shared URLs
+          f = open('viewed_urls.txt', 'r') #READ FROM S3
+          urls = f.readlines()
+          urls = [url.rstrip() for url in urls] # remove the '\n' char
+          f.close()
+
+          #logging
+          date = datetime.now().strftime("%Y_%m_%d-%I:%M:%S_%p")
+          file1 = open('logfile.log', 'a')
+          file1.write(date + " Logging script execution")
+          file1.write("\n")
+          file1.close()
+
+
+          def contains_wanted(in_str):
+              # returns true if the in_str contains a keyword
+              # we are interested in. Case-insensitive
+              for wrd in key_words:
+                  if wrd.lower() in in_str:
+                      return True
+              return False
+
+          def url_is_new(urlstr):
+              # returns true if the url string does not exist
+              # in the list of strings extracted from the text file
+              if urlstr in urls:
+                  return False
+              else:
+                  return True
+
+          feed = feedparser.parse(rss)
+          for key in feed["entries"]:
+              url = key['links'][0]['href']
+              title = key['title']
+              rawDescription = key['description']
+              description = BeautifulSoup(rawDescription, 'html.parser')
+
+              if contains_wanted(title.lower()) and url_is_new(url):
+                  print('{} - {} - {}'.format(title, url, description.get_text()))
+
+                  #msgtitle = title
+                  #msg = '{}\n{}'.format(title, url, description)
+
+                  body = {
+                      "title": title,
+                      "description": description.get_text(),
+                      "url": url,
+                  }
+
+                  jsonData = json.dumps(body)
+                  response = requests.post(webhook, jsonData)
+
+                          # recording URLs to file
+                  with open('viewed_urls.txt', 'a') as f:
+                      f.write('{}\n'.format(url))
+                      f.close()
+      Handler: 'index.lambda_handler'
+      MemorySize: 2688
+      Timeout: 300
+      Role: 
+        Fn::GetAtt:
+          - LambdaRole
+          - Arn
+      Environment:
+        Variables:
+          BUCKET_NAME: !Ref DestinationBucket
+          WEBHOOK: !Ref Webhook
+          
+  EventPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt Lambda.Arn
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !GetAtt CloudWatchTrigger.Arn
