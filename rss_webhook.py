@@ -12,7 +12,7 @@ import logging
 key_words = ['cost','price','optimize','optimization','costs','prices','pricing','advisor', 'graviton','CFM','financial','finops','finance']
 
 # Slack Webhook for Publishing Target
-webhook = 'https://hooks.slack.com/workflows/T016M3G908HSKLSL/9734HHKS/FFESfRF0'
+webhook = 'https://hooks.slack.com/workflows/T016M3G908HSKLSL/9734HHKS/iiiiiii'
 
 # RSS Feed
 rss = 'https://aws.amazon.com/about-aws/whats-new/recent/feed/'
@@ -28,13 +28,8 @@ def lambda_handler(event, context):
         urls = [url.rstrip() for url in urls] # remove the '\n' char
         f.close()
 
-        #logging CHNAGE TO LOGGING IN CW
         date = datetime.now().strftime("%Y_%m_%d-%I:%M:%S_%p")
-        # file1 = open('logfile.log', 'a')
-        # file1.write(date + " Logging script execution")
         logging.info(date + " Logging script execution")
-        # file1.write("\n")
-        # file1.close()
 
         feed = feedparser.parse(rss)
         for key in feed["entries"]:
@@ -54,7 +49,7 @@ def lambda_handler(event, context):
                     "description": description.get_text(),
                     "url": url,
                 }
-
+                logging.info(title)
                 jsonData = json.dumps(body)
                 response = requests.post(webhook, jsonData)
 
