@@ -27,6 +27,7 @@ source ./v-env/bin/activate
 pip install BeautifulSoup4
 pip install feedparser
 pip install requests
+pip install urllib3==1.26.15 -t ./python --no-user --upgrade
 deactivate
 
 mkdir python

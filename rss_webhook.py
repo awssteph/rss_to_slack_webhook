@@ -4,7 +4,8 @@ import feedparser
 import requests
 import json
 import logging
-
+import boto3
+import os 
 
 # Adapted from: https://timothybramlett.com/recieving_notifications_of_rss_feeds_matching_keywords_with_Python.html
 
@@ -12,18 +13,19 @@ import logging
 key_words = ['cost','price','optimize','optimization','costs','prices','pricing','advisor', 'graviton','CFM','financial','finops','finance']
 
 # Slack Webhook for Publishing Target
-webhook = 'https://hooks.slack.com/workflows/T016M3G908HSKLSL/9734HHKS/iiiiiii'
+webhook = os.environ['WEBHOOK']
+
+bucket_name = os.environ['BUCKET_NAME']
 
 # RSS Feed
 rss = 'https://aws.amazon.com/about-aws/whats-new/recent/feed/'
-
-
 
 def lambda_handler(event, context):
 
     try:
         # View list of previously shared URLs
-        f = open('viewed_urls.txt', 'r') #CHANGE TO READ FROM S£
+        s = s3_download()
+        f = open('/tmp/viewed_urls.txt', 'r') #CHANGE TO READ FROM S£
         urls = f.readlines()
         urls = [url.rstrip() for url in urls] # remove the '\n' char
         f.close()
@@ -54,9 +56,11 @@ def lambda_handler(event, context):
                 response = requests.post(webhook, jsonData)
 
                         # recording URLs to file
-                with open('viewed_urls.txt', 'a') as f:
+                with open('/tmp/viewed_urls.txt', 'a') as f:
                     f.write('{}\n'.format(url))
                     f.close()
+        s3_upload()
+                
     except Exception as e:
         # Send some context about this error to Lambda Logs
         logging.warning("%s" % e)
@@ -77,3 +81,27 @@ def url_is_new(urlstr, urls):
     else:
         return True
 
+def s3_download():
+    try:
+        s3_client = boto3.client('s3')
+        s3_client.download_file(
+            Bucket=bucket_name,
+            Key='cfm_rss_webhook/viewed_urls.txt',
+            Filename='/tmp/viewed_urls.txt')
+        
+    except Exception as e:
+        logging.warning("Welcome! you have no viwed file so we will make one for you")
+        with open('/tmp/viewed_urls.txt', 'w') as f:
+             f.write('\n')
+
+def s3_upload():
+    try:
+        s3_client = boto3.client('s3')
+        s3_client.upload_file(
+          Bucket=bucket_name,
+          Key='cfm_rss_webhook/viewed_urls.txt',
+          Filename='/tmp/viewed_urls.txt')
+        s3_client.upload_file(f'/tmp/viewed_urls.txt', bucket_name, f"cfm_rss_webhook/viewed_urls.txt")
+        print(f"Data in {bucket_name}")
+    except Exception as e:
+        logging.warning("%s" % e)
