@@ -46,6 +46,10 @@ Resources:
           AbortIncompleteMultipartUpload:
             DaysAfterInitiation: 7
           Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:            
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
   CloudWatchTrigger:
     Type: AWS::Events::Rule
     Properties:
@@ -80,10 +84,6 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
-              - Effect: "Allow"
-                Action:
-                  - "cloudwatch:*"
-                Resource: "*"
               - Effect: "Allow"
                 Action:
                   - "logs:CreateLogGroup"
